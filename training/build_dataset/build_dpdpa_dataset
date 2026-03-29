@@ -1,0 +1,238 @@
+# training/build_dataset/build_dpdpa_dataset.py
+# Scrapes Indian company privacy policies and generates annotation CSV
+
+import sys, os, time, csv, re
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', '..'))
+
+import requests
+from bs4 import BeautifulSoup
+
+# ── CORRECT PRIVACY POLICY URLs ──────────────────────────────
+# These are direct privacy policy pages, not homepages
+INDIAN_POLICIES = {
+    "zomato":     "https://www.zomato.com/privacy",
+    "swiggy":     "https://www.swiggy.com/privacy-policy",
+    "paytm":      "https://paytm.com/privacy-policy",          # correct URL
+    "phonepe":    "https://www.phonepe.com/privacy-policy/",
+    "flipkart":   "https://www.flipkart.com/pages/privacypolicy",
+    "bigbasket":  "https://www.bigbasket.com/privacy-policy/",
+    "razorpay":   "https://razorpay.com/privacy/",
+    "groww":      "https://groww.in/privacy-policy",
+    "meesho":     "https://meesho.com/privacy-policy",
+    "nykaa":      "https://www.nykaa.com/privacy-policy/",
+    "cred":       "https://www.cred.club/privacy-policy",
+    "practo":     "https://www.practo.com/company/privacy",
+    "ola":        "https://www.olacabs.com/privacy",
+    "digilocker": "https://www.digilocker.gov.in/privacy.html",
+    "uidai":      "https://uidai.gov.in/en/privacy-policy.html",
+}
+
+# Privacy-related words — clause must contain at least one
+PRIVACY_SIGNALS = [
+    'data', 'information', 'personal', 'privacy', 'collect',
+    'share', 'store', 'process', 'user', 'account', 'access',
+    'security', 'consent', 'right', 'delete', 'retain', 'third',
+    'policy', 'purpose', 'disclose', 'transfer', 'protect',
+    'cookie', 'device', 'location', 'identity', 'profile'
+]
+
+def scrape_policy(url: str) -> str:
+    """Scrape and return clean text from a privacy policy page."""
+    try:
+        headers = {
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+                         "AppleWebKit/537.36 (KHTML, like Gecko) "
+                         "Chrome/120.0.0.0 Safari/537.36"
+        }
+        resp = requests.get(url, headers=headers, timeout=25)
+        resp.raise_for_status()
+
+        soup = BeautifulSoup(resp.text, 'html.parser')
+
+        # Remove non-content elements
+        for tag in soup.find_all([
+            'nav', 'header', 'footer', 'script', 'style',
+            'aside', 'form', 'button', 'iframe', 'noscript',
+            'img', 'svg', 'figure'
+        ]):
+            tag.decompose()
+
+        # Try to find main content area
+        main = (
+            soup.find('main') or
+            soup.find('article') or
+            soup.find(class_=re.compile(r'privacy|policy|content|main', re.I)) or
+            soup.find('body')
+        )
+
+        text = main.get_text(separator='\n', strip=True) if main else ""
+
+        # Clean HTML entities
+        text = re.sub(r'&nbsp;', ' ', text)
+        text = re.sub(r'&amp;', '&', text)
+        text = re.sub(r'&[a-zA-Z]+;', ' ', text)
+        text = re.sub(r'&#\d+;', ' ', text)
+
+        return text
+
+    except Exception as e:
+        print(f"  Failed: {e}")
+        return ""
+
+def is_valid_clause(text: str) -> bool:
+    """Check if a line is a real privacy clause, not junk."""
+    text = text.strip()
+    words = text.split()
+
+    # Length check
+    if len(words) < 10 or len(words) > 180:
+        return False
+
+    # Must contain privacy-related language
+    text_lower = text.lower()
+    if not any(signal in text_lower for signal in PRIVACY_SIGNALS):
+        return False
+
+    # Skip all-caps headings
+    if text.isupper() and len(words) < 15:
+        return False
+
+    # Skip lines that are just numbers, bullets, or symbols
+    if re.match(r'^[\d\s\.\-\*\•]+$', text):
+        return False
+
+    return True
+
+def segment_policy(text: str) -> list:
+    """Split policy text into valid clauses."""
+    # Detect format
+    double_nl = text.count('\n\n')
+    single_nl = text.count('\n')
+
+    if double_nl >= 3:
+        raw_chunks = re.split(r'\n\n+', text)
+    elif single_nl >= 3:
+        raw_chunks = text.split('\n')
+    else:
+        # No newlines — try sentence splitting
+        import spacy
+        nlp = spacy.load("en_core_web_sm")
+        doc = nlp(text[:500000])
+        raw_chunks = [s.text for s in doc.sents]
+
+    # Filter and clean
+    clauses = []
+    seen    = set()
+
+    for chunk in raw_chunks:
+        chunk = chunk.strip()
+        if not chunk:
+            continue
+
+        # Handle long paragraphs — split into sentences
+        words = len(chunk.split())
+        if words > 80:
+            try:
+                import spacy
+                nlp = spacy.load("en_core_web_sm")
+                doc = nlp(chunk)
+                for sent in doc.sents:
+                    s = sent.text.strip()
+                    if is_valid_clause(s):
+                        norm = ' '.join(s.lower().split())
+                        if norm not in seen:
+                            seen.add(norm)
+                            clauses.append(s)
+            except Exception:
+                if is_valid_clause(chunk):
+                    clauses.append(chunk)
+        else:
+            if is_valid_clause(chunk):
+                norm = ' '.join(chunk.lower().split())
+                if norm not in seen:
+                    seen.add(norm)
+                    clauses.append(chunk)
+
+    return clauses
+
+def build_dataset():
+    os.makedirs("data/raw",    exist_ok=True)
+    os.makedirs("data/labeled", exist_ok=True)
+
+    all_rows  = []
+    succeeded = []
+    failed    = []
+
+    for company, url in INDIAN_POLICIES.items():
+        print(f"\nScraping {company}...")
+        print(f"  URL: {url}")
+
+        text = scrape_policy(url)
+
+        if len(text) < 300:
+            print(f"  Too short ({len(text)} chars) — skipping")
+            failed.append(company)
+            time.sleep(1)
+            continue
+
+        # Save raw text
+        with open(f"data/raw/{company}.txt", 'w', encoding='utf-8') as f:
+            f.write(text)
+        print(f"  Saved {len(text):,} chars")
+
+        # Segment into valid clauses
+        clauses = segment_policy(text)
+        print(f"  Valid clauses: {len(clauses)}")
+
+        if len(clauses) < 5:
+            print(f"  Too few clauses — policy may not have loaded correctly")
+            failed.append(company)
+            time.sleep(2)
+            continue
+
+        succeeded.append(company)
+
+        for i, clause in enumerate(clauses):
+            all_rows.append({
+                "clause_id":     f"{company}_{i}",
+                "company":       company,
+                "text":          clause,
+                "word_count":    len(clause.split()),
+                "category":      "",
+                "risk_label":    "",
+                "dpdpa_section": "",
+                "notes":         ""
+            })
+
+        time.sleep(2)  # polite delay
+
+    # Write CSV
+    output_path = "data/labeled/dpdpa_to_annotate.csv"
+    fieldnames  = ["clause_id","company","text","word_count",
+                   "category","risk_label","dpdpa_section","notes"]
+
+    with open(output_path, 'w', newline='', encoding='utf-8-sig') as f:
+        writer = csv.DictWriter(f, fieldnames=fieldnames)
+        writer.writeheader()
+        writer.writerows(all_rows)
+
+    # Summary
+    print(f"\n{'='*60}")
+    print(f"DONE")
+    print(f"Total clauses: {len(all_rows)}")
+    print(f"Succeeded ({len(succeeded)}): {', '.join(succeeded)}")
+    if failed:
+        print(f"Failed ({len(failed)}):    {', '.join(failed)}")
+    print(f"\nSaved to: {output_path}")
+    print(f"Open in Google Sheets and fill in:")
+    print(f"  category, risk_label, dpdpa_section")
+    print(f"\nAnnotation guide:")
+    print(f"  category:       data_collection | data_sharing | user_rights |")
+    print(f"                  data_retention | security | policy_changes |")
+    print(f"                  childrens_data | legal_jurisdiction")
+    print(f"  risk_label:     red | green | gray")
+    print(f"  dpdpa_section:  S.4 | S.6 | S.7 | S.8 | S.9 | S.11 |")
+    print(f"                  S.13 | S.16 | S.17 | N/A")
+
+if __name__ == "__main__":
+    build_dataset()

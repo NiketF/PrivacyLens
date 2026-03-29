@@ -1,0 +1,276 @@
+# MASTER CONTEXT — Privacy Lens Project
+# Read this fully before responding to anything
+
+---
+
+## WHO I AM
+- Final year B.Tech CSE (Cyber Security) student, Nagpur, India
+- Graduating 2027
+- Building this as final year project + targeting research paper publication
+- Financial constraints — zero paid tools except Gemini free tier
+- Prefer concise, direct guidance
+
+---
+
+## WHAT THIS PROJECT IS
+
+**Privacy Lens** — A Universal Privacy Policy Translator.
+
+An AI-powered web application that:
+- Accepts any privacy policy (paste text or URL)
+- Segments it into individual clauses
+- Classifies each clause into Red (high risk) / Green (protective) / Gray (ambiguous)
+- Detects vagueness in deliberately obscure language
+- Flags rights that are ABSENT from the policy
+- Generates plain-English explanations per clause
+- Produces a 0–100 risk score
+- Outputs structured 4-question format:
+  1. What data is collected?
+  2. Who is it shared with?
+  3. What are your rights?
+  4. What should you watch out for?
+
+---
+
+## RESEARCH ANGLE
+
+**Primary claim:** First DPDPA 2023 aligned privacy policy classifier trained 
+on Indian company policy data.
+
+**Three novel contributions:**
+1. First DPDPA-annotated clause-level corpus of Indian privacy policies
+2. Vagueness detection — quantifies deliberate linguistic obfuscation (novel metric)
+3. Absence detection — flags user rights missing from policy (no existing system does this)
+
+**Closest existing work:** Polisis (USENIX 2018, CMU) — English only, 
+no DPDPA alignment, no vagueness detection, no absence detection, 
+no plain-English explanations for users.
+
+**Target venues:** FIRE 2025, LREC-COLING (resource track), arXiv
+
+---
+
+## CURRENT TECH STACK
+
+- Python 3.11, Windows 11
+- VS Code
+- Virtual environment: E:\Niket\Privacy-Policy-Analyzer\venv
+- Project path: E:\Niket\Privacy-Policy-Analyzer
+
+### Libraries installed:
+scikit-learn, transformers, torch, spacy (en_core_web_sm),
+streamlit, google-generativeai, beautifulsoup4, pdfminer.six,
+langdetect, fastapi, uvicorn, python-dotenv, pandas, numpy,
+matplotlib, seaborn, evaluate, imbalanced-learn
+
+---
+
+## COMPLETE FOLDER STRUCTURE
+```
+E:\Niket\Privacy-Policy-Analyzer\
+├── data/
+│   ├── raw/                        # scraped policy texts
+│   ├── opp115/OPP-115/annotations/ # 115 CSV files (OPP-115 dataset)
+│   ├── labeled/                    # DPDPA annotations (IN PROGRESS)
+│   └── processed/
+│       └── stage1_ready.csv        # 8,777 labeled clauses ready
+│
+├── src/
+│   ├── ingestion/
+│   │   ├── __init__.py
+│   │   ├── clause_segmentor.py     # splits policy into clauses
+│   │   ├── data_loader.py          # loads OPP-115 dataset
+│   │   └── url_scraper.py          # scrapes policy from URL
+│   ├── models/
+│   │   ├── __init__.py
+│   │   ├── baseline_svm.py         # TF-IDF + SVM training
+│   │   ├── risk_classifier.py      # Red/Green/Gray classification
+│   │   └── simplifier.py          # plain-English explanations
+│   └── pipeline.py                 # orchestrates full flow
+│
+├── training/
+│   ├── build_dataset/
+│   │   └── build_dpdpa_dataset.py  # scrapes + segments Indian policies
+│   ├── train_stage1_bert.py        # BERT fine-tuning (Colab)
+│   ├── evaluate.py
+│   └── test_real_policies.py
+│
+├── frontend/
+│   └── app.py                      # Streamlit dashboard
+│
+├── models/checkpoints/
+│   └── baseline_stage1.pkl         # TRAINED SVM model (exists)
+│
+├── .env                            # GEMINI_API_KEY=...
+├── requirements.txt
+└── README.md
+```
+
+---
+
+## CURRENT PROJECT STATUS
+
+### COMPLETED AND WORKING:
+- [x] OPP-115 dataset loaded — 8,777 clauses, 8 categories
+- [x] TF-IDF + SVM baseline TRAINED — **Macro F1 = 0.80**
+- [x] CV Macro F1 = 0.7945 ± 0.017
+- [x] Clause segmentor — handles single \n, double \n\n, no newlines
+- [x] Aggressive HTML cleaning in segmentor
+- [x] Risk classifier — negation-aware, expanded keyword set
+- [x] Vagueness detector — hedge words, passive voice, undefined entities
+- [x] Absence detection — 6 expected rights checked
+- [x] Simplifier — spaCy entity extraction + honest fallback (NO API)
+- [x] Full pipeline working end to end — no clause limit
+- [x] Streamlit dashboard — dark terminal UI, working
+- [x] Tested on Zomato — 31.3/100 MODERATE RISK, 207 clauses
+- [x] Two-stage analysis: classify first (instant), explain after
+
+### IN PROGRESS:
+- [ ] DPDPA 2023 dataset annotation (Google Sheets, target 300 clauses)
+- [ ] Legal-BERT fine-tuning on DPDPA data (needs annotation first)
+- [ ] T5 simplification fine-tuning (needs annotation notes)
+
+### NOT STARTED:
+- [ ] Multilingual support (XLM-RoBERTa)
+- [ ] PDF upload support
+- [ ] Deployment
+
+---
+
+## KEY RESULTS SO FAR
+
+| Metric | Value |
+|--------|-------|
+| Training samples | 8,777 clauses |
+| Categories | 8 data practice types |
+| SVM Macro F1 | 0.8027 |
+| CV Macro F1 | 0.7945 ± 0.017 |
+| Zomato risk score | 31.3 / 100 — MODERATE RISK |
+| Zomato clauses analyzed | 207 clauses |
+| Red clauses (Zomato) | 28 |
+| Green clauses (Zomato) | 6 |
+| Gray clauses (Zomato) | 173 |
+
+---
+
+## KNOWN ISSUES AND DECISIONS MADE
+
+### Issues:
+1. **Too many Gray clauses** (~83%) — Root cause: SVM misclassifies 
+   category → wrong keyword set checked → defaults to Gray. 
+   Fix: BERT fine-tuning on DPDPA data will reduce this significantly.
+
+2. **Vagueness detection** works but many clauses score Gray because 
+   they use unusual language not in keyword lists. This is expected 
+   and honest — the system does not fabricate classifications.
+
+3. **Gray clauses are real** — Many policy clauses genuinely are neutral 
+   boilerplate. 40-45% Gray after BERT is realistic and accurate.
+
+### Decisions Made:
+- Removed all Gemini API calls — switched to local spaCy simplification
+- No clause limit — all clauses in policy are analyzed
+- simplify_clause uses entity extraction → specific explanation OR 
+  honest fallback → never wrong/fabricated explanation
+- sys.path.insert fix applied to pipeline.py and frontend/app.py
+- Windows: use venv\Scripts\activate
+
+---
+
+## HOW TO RUN
+```bash
+cd E:\Niket\Privacy-Policy-Analyzer
+venv\Scripts\activate
+streamlit run frontend/app.py
+```
+
+---
+
+## PIPELINE FLOW
+```
+User Input (paste/URL)
+       ↓
+clause_segmentor.py     → splits into clauses (handles all formats)
+       ↓
+Stage 1: SVM classifier  → predicts category (8 types) — instant
+       ↓
+risk_classifier.py       → Red/Green/Gray + vagueness score — instant
+       ↓
+simplifier.py            → spaCy entity extraction → plain English — instant
+       ↓
+absence detection        → checks 6 expected rights
+       ↓
+risk score calculation   → 0-100 weighted formula
+       ↓
+Streamlit dashboard      → 3-column flag view + detail tabs
+```
+
+---
+
+## CURRENT FILE CONTENTS
+
+### IMPORTANT: Paste these files when starting new chat
+
+Paste contents of these files after this context prompt:
+1. src/pipeline.py
+2. src/models/risk_classifier.py  
+3. src/models/simplifier.py
+4. src/ingestion/clause_segmentor.py
+5. frontend/app.py
+
+---
+
+## WHAT THE NEXT CLAUDE SHOULD KNOW
+
+### Immediate priorities:
+1. Fix remaining simplifier gap (honest fallback already designed)
+2. DPDPA annotation — build_dpdpa_dataset.py generates the CSV
+3. Legal-BERT fine-tuning in Google Colab after 300 annotations
+4. T5 fine-tuning for simplification after annotation notes exist
+5. Research paper writing starts after BERT results
+
+### Rules this Claude should follow:
+- User is on Windows — always use venv\Scripts\activate
+- User prefers concise direct answers
+- Free tools only — no paid services
+- When modifying files, always provide complete file contents
+- Never leave # REPLACE WITH or broken comments in code
+- Test commands before suggesting them
+- When stuck on errors, ask for exact error message before guessing
+
+### Research paper context:
+- Title: "PrivacyLens: DPDPA 2023-Aligned Clause-Level Risk 
+  Classification of Indian Privacy Policies Using Legal-BERT"
+- Key comparison: Polisis (USENIX 2018) — cite as baseline
+- Novel contributions: DPDPA dataset + vagueness detection + 
+  absence detection
+- Target: FIRE 2025 or arXiv preprint first
+
+---
+
+## HOW TO USE THIS PROMPT
+
+Start any new conversation with:
+
+"Here is my complete project context. Read everything before responding.
+
+[paste entire MASTER_CONTEXT.md content here]
+
+Now paste my current file contents:
+
+--- pipeline.py ---
+[paste]
+
+--- risk_classifier.py ---
+[paste]
+
+--- simplifier.py ---
+[paste]
+
+--- clause_segmentor.py ---
+[paste]
+
+--- app.py ---
+[paste]
+
+My question is: [your question here]"

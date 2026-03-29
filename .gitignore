@@ -1,0 +1,53 @@
+# ── SECRETS — NEVER push these ───────────────────────────────
+.env
+*.env
+.env.local
+secrets.py
+
+# ── Python ────────────────────────────────────────────────────
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+.Python
+venv/
+env/
+ENV/
+*.egg-info/
+dist/
+build/
+.eggs/
+
+# ── Models & large files ──────────────────────────────────────
+models/checkpoints/*.pkl
+models/checkpoints/*.pt
+models/checkpoints/*.bin
+models/checkpoints/*.safetensors
+*.pkl
+*.pt
+*.bin
+
+# ── Data — raw scraped text (too large, regenerate with script) 
+data/raw/*.txt
+
+# ── Keep these data files (they are the dataset contribution) ─
+!data/labeled/*.csv
+!data/processed/*.csv
+
+# ── Jupyter ───────────────────────────────────────────────────
+.ipynb_checkpoints/
+*.ipynb
+
+# ── OS ────────────────────────────────────────────────────────
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# ── IDE ───────────────────────────────────────────────────────
+.vscode/settings.json
+.idea/
+*.swp
+
+# ── Streamlit ─────────────────────────────────────────────────
+.streamlit/secrets.toml
+data/opp115/
