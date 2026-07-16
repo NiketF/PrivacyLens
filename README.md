@@ -68,8 +68,7 @@ We evaluated Legal-BERT (`nlpaueb/legal-bert-base-uncased`) as an alternative to
 
 **DPDPA-Annotated Indian Privacy Policy Corpus** — 816 manually annotated clauses from 9 major Indian companies (Zomato, Flipkart, Swiggy, PhonePe, Razorpay, BigBasket, Nykaa, UIDAI, Ola), labeled for risk (red/green/gray) and mapped to DPDPA 2023 sections.
 
-📦 Dataset available on Kaggle: *[link once published]*
-📄 Paper: *[arXiv link once published]*
+📦 Dataset available on Kaggle: https://www.kaggle.com/datasets/niketfuladi/dpdpa-2023-indian-privacy-policy-clause-level-risk
 
 ---
 
