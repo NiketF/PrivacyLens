@@ -159,15 +159,7 @@ Navigate to `http://localhost:8501`, paste a privacy policy (or a URL), and clic
 
 ---
 
-## Research
-
-This project is being developed alongside a research paper:
-
-> **PrivacyLens: DPDPA 2023-Aligned Clause-Level Risk Classification of Indian Privacy Policies**
-> *[Author names] — [Institution]*
-> Target venue: arXiv preprint → FIRE 2025 / LREC-COLING (resource track)
-
-**Novel contributions:**
+## Contributions & Research
 1. First DPDPA 2023 clause-level annotated corpus of Indian privacy policies
 2. A vagueness detection metric for quantifying deliberate linguistic obfuscation
 3. Absence detection — flagging user rights missing from a policy (not found in prior work, including Polisis)
@@ -182,7 +174,8 @@ This is currently a solo academic project, but suggestions and issues are welcom
 
 ## License
 
-*Choose and add a license (MIT recommended for code, CC BY 4.0 for the dataset if published separately on Kaggle).*
+CC BY-SA 4.0
+
 
 ---
 
@@ -196,6 +189,6 @@ This is currently a solo academic project, but suggestions and issues are welcom
 
 ## Contact
 
-**[Your Name]**
+Niket Fuladi
 Final Year B.Tech CSE (Cyber Security), Nagpur, India
-[LinkedIn] · [Email] · [Portfolio]
+https://linkedin.com.in/niket-fuladi · fuladiniket.work@gmail.com
