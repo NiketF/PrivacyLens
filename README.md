@@ -190,5 +190,7 @@ CC BY-SA 4.0
 ## Contact
 
 Niket Fuladi
+
 Final Year B.Tech CSE (Cyber Security), Nagpur, India
+
 https://linkedin.com.in/niket-fuladi · fuladiniket.work@gmail.com
